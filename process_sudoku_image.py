@@ -1,3 +1,4 @@
+import copy
 import cv2
 
 
@@ -91,14 +92,24 @@ class ShapeDetector:
         return shape
 
 
+def is_shape_potential_sudoku(shape: Shape) -> bool:
+    if shape is None:
+        return False
+
+    return shape.shape_name == "rectangle" or shape.shape_name == "square"
+
+
 if __name__ == '__main__':
     image = cv2.imread("sudoku.png")
+    image = cv2.resize(image, (900, 900))
 
     # convert the resized image to grayscale, blur it slightly,
     # and threshold it
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
-    thresh = cv2.threshold(blurred, 175, 255, cv2.THRESH_BINARY)[1]
+    cv2.imshow("blurred", blurred)
+    thresh = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY, 11, 2)
     thresh = cv2.bitwise_not(thresh)
     # find contours in the thresholded image and initialize the
     # shape detector
@@ -107,13 +118,19 @@ if __name__ == '__main__':
 
     sd = ShapeDetector()
     cv2.imshow("threshold", thresh)
-    shapes = filter(None, map(sd.detect, cnts))
+    shapes = filter(is_shape_potential_sudoku, map(sd.detect, cnts))
 
-    sudoku = max(shapes, key=lambda shape: shape.area)
+    sudokus = sorted(shapes, key=lambda shape: shape.area)
 
-    cv2.drawContours(image, [sudoku.contour], -1, (255, 255, 0), 2)
-    cv2.putText(image, sudoku.shape_name, sudoku.center, cv2.FONT_HERSHEY_SIMPLEX,
-                0.5, (0, 0, 0), 2)
-    cv2.imshow("Image", image)
+    for i, sudoku in enumerate(reversed(sudokus)):
+        if i > 3:
+            break
+
+        new_image = copy.deepcopy(image)
+        cv2.drawContours(new_image, [sudoku.contour], -1, (255, 255, 0), 2)
+        cv2.putText(new_image, sudoku.shape_name, sudoku.center, cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5, (0, 0, 0), 2)
+
+        cv2.imshow("Image{}".format(i), new_image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
