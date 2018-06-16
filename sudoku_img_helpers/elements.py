@@ -1,6 +1,12 @@
-from typing import Optional, Tuple, List
+#!/usr/bin/env python3
+
+from math import sqrt
+from typing import Tuple, List
 
 import cv2
+import numpy
+
+from sudoku_img_helpers.shape import Shape
 
 
 class Point:
@@ -39,13 +45,21 @@ class Point:
     def y(self, y):
         self._y = int(y)
 
+    @staticmethod
+    def distance(start_point: "Point", end_point: "Point"):
+        return sqrt((end_point.x - start_point.x) ** 2 +
+                    (end_point.y - start_point.y) ** 2)
+
     def draw_on_image(self, image, marker_size: int = 10, thickness: int = 3, color: tuple = (0, 0, 255),
                       marker_type=cv2.MARKER_CROSS):
         cv2.drawMarker(image, (self._x, self._y), color,
                        markerType=marker_type, markerSize=marker_size, thickness=thickness)
 
-    def to_list(self):
+    def to_list(self) -> List:
         return [self._x, self._y]
+
+    def to_tuple(self) -> Tuple:
+        return self._x, self._y
 
 
 class Cell:
@@ -87,103 +101,95 @@ class Cell:
     def bottom_right(self, point: Point):
         self._bottom_right = point
 
-    def draw_on_image(self, image, thickness: int = 3, color: tuple = (0, 0, 255)):
-        contours = [[self._top_left.to_list()], [self._top_right.to_list()],
-                    [self._bottom_right.to_list()], [self._bottom_left.to_list()]]
-
-        cv2.drawContours(image, [contours], -1, color, thickness)
-
-
-class Shape:
-    def __init__(self, center: Optional[Tuple] = None, contour: Optional[list] = None):
-        self._shape = "unidentified"
-        self._center = center
-        self._contour = contour
-        if contour is not None:
-            self._area = cv2.contourArea(contour)
-            self._perimeter = cv2.arcLength(contour, True)
-            self._approx = cv2.approxPolyDP(contour, 0.04 * self._perimeter, True)
-        else:
-            self._area = None
-            self._perimeter = None
-            self._approx = None
-
     @property
-    def shape_name(self):
-        return self._shape
-
-    @shape_name.setter
-    def shape_name(self, value: str):
-        self._shape = value
-
-    @property
-    def area(self):
-        return self._area
-
-    @area.setter
-    def area(self, value: float):
-        self._area = value
+    def contour(self):
+        return numpy.array([[self._top_left.to_list()], [self._top_right.to_list()],
+                            [self._bottom_right.to_list()], [self._bottom_left.to_list()]], dtype=numpy.int32)
 
     @property
     def center(self):
-        return self._center
-
-    @center.setter
-    def center(self, value):
-        self._center = value
+        return (self._top_left + self._top_right + self._bottom_left + self._bottom_right) / 4
 
     @property
-    def contour(self):
-        return self._contour
+    def corners(self):
+        return [self._top_left, self._top_right, self._bottom_left, self._bottom_right]
 
-    @contour.setter
-    def contour(self, value):
-        self._contour = value
+    def draw_on_image(self, image, thickness: int = 3, color: tuple = (0, 0, 255)):
+        cv2.drawContours(image, [self.contour], -1, color, thickness)
 
-    @property
-    def approx(self):
-        return self._approx
+    def get_cell_image(self, image):
+        x_max, x_min, y_max, y_min = self.get_bounds()
 
-    @approx.setter
-    def approx(self, value):
-        self._approx = value
+        center = Point((x_max + x_min) // 2, (y_max + y_min) // 2)
+        top_corner = Point(x_min, y_min)
+        sub_image = cv2.getRectSubPix(image, (x_max - x_min, y_max - y_min), center.to_tuple())
+
+        mask = numpy.ones(sub_image.shape, dtype="uint8") * 255
+        top_left = self._top_left - top_corner
+        top_right = self._top_right - top_corner
+        bottom_right = self._bottom_right - top_corner
+        bottom_left = self._bottom_left - top_corner
+        contour = [numpy.array([[top_left.to_list()], [top_right.to_list()],
+                                [bottom_right.to_list()], [bottom_left.to_list()]], dtype=numpy.int32)]
+        cv2.drawContours(mask, contour, 0, (0, 0, 0), -1)
+        return cv2.bitwise_or(sub_image, mask)
+
+    def get_bounds(self):
+        x_positions = [self._top_left.x, self._top_right.x, self._bottom_left.x, self._bottom_right.x]
+        y_positions = [self._top_left.y, self._top_right.y, self._bottom_left.y, self._bottom_right.y]
+        x_max = max(x_positions)
+        x_min = min(x_positions)
+        y_max = max(y_positions)
+        y_min = min(y_positions)
+        return x_max, x_min, y_max, y_min
 
 
 class Sudoku(Cell):
-    def __init__(self, shape: Shape):
-        self._shape = shape
-        super().__init__(*self.sort_corners(shape.approx))
+    def __init__(self, top_left: Point, top_right: Point, bottom_left: Point, bottom_right: Point):
+        super().__init__(top_left, top_right, bottom_left, bottom_right)
         self._corners = []
-        self._cells = []
-        bottom_corners = [self._bottom_left + (self._bottom_right - self._bottom_left) * (i / 9) for i in range(10)]
-        top_corners = [self._top_left + (self._top_right - self._top_left) * (i / 9) for i in range(10)]
+        self._cells = [[] for _ in range(9)]
+        left_corners = [self._top_left + (self._bottom_left - self._top_left) * (i / 9) for i in range(10)]
+        right_corners = [self._top_right + (self._bottom_right - self._top_right) * (i / 9) for i in range(10)]
 
-        for i in range(len(bottom_corners)):
+        for i in range(len(left_corners)):
             self._corners.append([
-                bottom_corners[i] + (top_corners[i] - bottom_corners[i]) * (j / 9) for j in range(10)
+                left_corners[i] + (right_corners[i] - left_corners[i]) * (j / 9) for j in range(10)
             ])
 
         for row in range(9):
             for col in range(9):
-                # TODO
-                pass
+                self._cells[row].append(Cell(self._corners[row][col], self._corners[row][col + 1],
+                                             self._corners[row + 1][col], self._corners[row + 1][col + 1]))
 
     def draw_corners(self, image, *args, **kwargs):
-        for lines in self._corners:
-            for point in lines:
+        for rows in self._corners:
+            for point in rows:
                 point.draw_on_image(image, *args, **kwargs)
 
+    def draw_cells(self, image, *args, **kwargs):
+        for rows in self._cells:
+            for cell in rows:
+                cell.draw_on_image(image, *args, **kwargs)
+
     @staticmethod
-    def sort_corners(corners: list) -> List[Point]:
+    def sort_shape_corners(shape: Shape) -> List[Point]:
         """
-        Sort quadrilateral corners as follows top_left, top_right, bottom_left, bottom_right
-        :param corners:
+        Sort shape four corners contained in approx as follows top_left, top_right, bottom_left, bottom_right
+        :param shape:
         :return: Corners ordered as follows top_left, top_right, bottom_left, bottom_right
         """
+        # Ensures there are four corners in approx
+        assert shape.shape_name == Shape.RECTANGLE or shape.shape_name == shape.SQUARE
+
         # conversion to list of tuples
-        corners = list(map(lambda corner: Point(corner[0][0], corner[0][1]), corners))
+        corners = list(map(lambda corner: Point(corner[0][0], corner[0][1]), shape.approx))
         top_bottom_sorted = sorted(corners, key=lambda point: point.y)
         top_left, top_right = sorted(top_bottom_sorted[:2], key=lambda point: point.x)
         bottom_left, bottom_right = sorted(top_bottom_sorted[2:], key=lambda point: point.x)
 
         return [top_left, top_right, bottom_left, bottom_right]
+
+    @staticmethod
+    def make_from_shape(shape: Shape) -> "Sudoku":
+        return Sudoku(*Sudoku.sort_shape_corners(shape))
