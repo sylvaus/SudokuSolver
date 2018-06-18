@@ -117,7 +117,7 @@ class Cell:
     def draw_on_image(self, image, thickness: int = 3, color: tuple = (0, 0, 255)):
         cv2.drawContours(image, [self.contour], -1, color, thickness)
 
-    def get_cell_image(self, image):
+    def get_cell_image(self, image, offset: float=0):
         x_max, x_min, y_max, y_min = self.get_bounds()
 
         center = Point((x_max + x_min) // 2, (y_max + y_min) // 2)
@@ -129,6 +129,15 @@ class Cell:
         top_right = self._top_right - top_corner
         bottom_right = self._bottom_right - top_corner
         bottom_left = self._bottom_left - top_corner
+
+        if abs(offset) > 0.0001:
+            down_diag = (self._bottom_right - self._top_left) * offset
+            up_diag = (self.top_right - self.bottom_left) * offset
+            top_left += down_diag
+            top_right -= up_diag
+            bottom_left += up_diag
+            bottom_right -= down_diag
+
         contour = [numpy.array([[top_left.to_list()], [top_right.to_list()],
                                 [bottom_right.to_list()], [bottom_left.to_list()]], dtype=numpy.int32)]
         cv2.drawContours(mask, contour, 0, (0, 0, 0), -1)
@@ -162,12 +171,16 @@ class Sudoku(Cell):
                 self._cells[row].append(Cell(self._corners[row][col], self._corners[row][col + 1],
                                              self._corners[row + 1][col], self._corners[row + 1][col + 1]))
 
-    def draw_corners(self, image, *args, **kwargs):
+    @property
+    def cells(self) -> List[List[Cell]]:
+        return self._cells
+
+    def draw_corners(self, image, *args, **kwargs) -> None:
         for rows in self._corners:
             for point in rows:
                 point.draw_on_image(image, *args, **kwargs)
 
-    def draw_cells(self, image, *args, **kwargs):
+    def draw_cells(self, image, *args, **kwargs) -> None:
         for rows in self._cells:
             for cell in rows:
                 cell.draw_on_image(image, *args, **kwargs)
