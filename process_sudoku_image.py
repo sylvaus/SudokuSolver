@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 
-import copy
-
 import cv2
-import numpy
-import pytesseract as tess
 
-
-from sudoku_img_helpers.elements import Point, Sudoku
 from sudoku_img_helpers.extractor import SudokuExtractor
-from sudoku_img_helpers.detectors import detect_possible_sudokus
+from sudoku_solvers.metro_sudoku_solver import SudokuSolver
 
 if __name__ == '__main__':
-    image = cv2.imread("sudoku4.jpg")
+    image = cv2.imread("sudoku3.jpg")
 
     extractor = SudokuExtractor(image)
-    print(extractor.extract_sudoku())
+    values = extractor.extract_sudoku()
+    solver = SudokuSolver(values)
+    result = solver.solve()
+    extractor.write_sudoku_values(result)
+
 

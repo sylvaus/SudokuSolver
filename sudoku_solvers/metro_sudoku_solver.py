@@ -125,6 +125,8 @@ class CellGroup:
 
 class SudokuSolver:
     def __init__(self, values):
+        assert len(values) == 81, "The values are expected in one array"
+
         self._rows = [CellGroup() for _ in range(9)]
         self._cols = [CellGroup() for _ in range(9)]
         self._squares = [CellGroup() for _ in range(9)]
@@ -155,8 +157,7 @@ class SudokuSolver:
         target = len(self._modifiable_cells)
         while index < target:
             cell = self._modifiable_cells[index]
-            if cell.value == 2 and index == 0:
-                print("OK")
+
             if cell.set_next_possible():
                 index += 1
                 continue
@@ -173,6 +174,7 @@ class SudokuSolver:
 
     def print_sudoku(self):
         print(SUDOKU_STR.format(*self._cells))
+
 
 if __name__ == '__main__':
     values = load_sudoku("../sudokus/sudoku_0.csv")

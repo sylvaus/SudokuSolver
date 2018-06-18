@@ -117,6 +117,11 @@ class Cell:
     def draw_on_image(self, image, thickness: int = 3, color: tuple = (0, 0, 255)):
         cv2.drawContours(image, [self.contour], -1, color, thickness)
 
+    def write_on_image(self, image, text: str, font=cv2.FONT_HERSHEY_PLAIN, font_scale=2, color=(0, 0, 0), thickness=4):
+        size, baseline = cv2.getTextSize(text, font, font_scale, thickness=thickness)
+        cv2.putText(image, text, (self.center + Point(-size[0]/2, size[1]/2)).to_tuple(),
+                    font, font_scale, color, thickness=thickness)
+
     def get_cell_image(self, image, offset: float=0):
         x_max, x_min, y_max, y_min = self.get_bounds()
 
@@ -157,7 +162,7 @@ class Sudoku(Cell):
     def __init__(self, top_left: Point, top_right: Point, bottom_left: Point, bottom_right: Point):
         super().__init__(top_left, top_right, bottom_left, bottom_right)
         self._corners = []
-        self._cells = [[] for _ in range(9)]
+        self._cells = []
         left_corners = [self._top_left + (self._bottom_left - self._top_left) * (i / 9) for i in range(10)]
         right_corners = [self._top_right + (self._bottom_right - self._top_right) * (i / 9) for i in range(10)]
 
@@ -168,11 +173,11 @@ class Sudoku(Cell):
 
         for row in range(9):
             for col in range(9):
-                self._cells[row].append(Cell(self._corners[row][col], self._corners[row][col + 1],
-                                             self._corners[row + 1][col], self._corners[row + 1][col + 1]))
+                self._cells.append(Cell(self._corners[row][col], self._corners[row][col + 1],
+                                        self._corners[row + 1][col], self._corners[row + 1][col + 1]))
 
     @property
-    def cells(self) -> List[List[Cell]]:
+    def cells(self) -> List[Cell]:
         return self._cells
 
     def draw_corners(self, image, *args, **kwargs) -> None:
@@ -181,9 +186,16 @@ class Sudoku(Cell):
                 point.draw_on_image(image, *args, **kwargs)
 
     def draw_cells(self, image, *args, **kwargs) -> None:
-        for rows in self._cells:
-            for cell in rows:
-                cell.draw_on_image(image, *args, **kwargs)
+        for cell in self._cells:
+            cell.draw_on_image(image, *args, **kwargs)
+
+    def write_in_cells(self, image, values, font=cv2.FONT_HERSHEY_PLAIN, font_scale=2, color=(0, 0, 0)):
+        assert len(self._cells) == len(values)
+
+        for cell, value in zip(self._cells, values):
+            if value is None:
+                continue
+            cell.write_on_image(image, str(value), font, font_scale, color)
 
     @staticmethod
     def sort_shape_corners(shape: Shape) -> List[Point]:

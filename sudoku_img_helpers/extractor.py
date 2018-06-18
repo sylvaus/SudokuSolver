@@ -13,6 +13,8 @@ from sudoku_img_helpers.elements import Sudoku, Point
 class SudokuExtractor:
     def __init__(self, image):
         self._image = deepcopy(image)
+        self._sudoku_image = None
+        self._sudoku_position = None
 
     def extract_sudoku(self):
         image = cv2.resize(self._image, (1200, 1200))
@@ -26,23 +28,25 @@ class SudokuExtractor:
             if i > 0:
                 break
 
-            sudoku_image, sudoku_position = self._rotate_and_crop_sudoku(image, sudoku_shape)
+            self._sudoku_image, self._sudoku_position = self._rotate_and_crop_sudoku(image, sudoku_shape)
+            ocr_image = self._prepare_image_for_ocr(self._sudoku_image)
 
-            gray = cv2.cvtColor(sudoku_image, cv2.COLOR_BGR2GRAY)
-            blurred = cv2.GaussianBlur(gray, (15, 15), 0)
-            sudoku_image = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                           cv2.THRESH_BINARY, 11, 2)
+            for cell in self._sudoku_position.cells:
+                cell_image = cell.get_cell_image(ocr_image, 0.15)
+                text = tess.image_to_string(cell_image,
+                                            config="--psm 10 -c classify_bln_numeric_mode=1 --oem 1")
 
-            for row_cell in sudoku_position.cells:
-                row_result = []
-                for cell in row_cell:
-                    cell_image = cell.get_cell_image(sudoku_image, 0.15)
-                    text = tess.image_to_string(cell_image,
-                                                config="--psm 10 -c classify_bln_numeric_mode=1 --oem 1")
-                    row_result.append(self._text_to_int(text))
-                result.append(row_result)
+                result.append(self._text_to_int(text))
 
         return result
+
+    @staticmethod
+    def _prepare_image_for_ocr(sudoku_image):
+        gray = cv2.cvtColor(sudoku_image, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (15, 15), 0)
+        sudoku_image = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                             cv2.THRESH_BINARY, 11, 2)
+        return sudoku_image
 
     @staticmethod
     def _text_to_int(val):
@@ -60,9 +64,6 @@ class SudokuExtractor:
             return num
         else:
             return None
-
-
-
 
     def _rotate_and_crop_sudoku(self, image, sudoku_shape) -> [Any, Sudoku]:
         # TODO: Handle case for angle oustide -90..90 range
@@ -85,4 +86,10 @@ class SudokuExtractor:
                 Point.distance(corners[2], corners[3]) +
                 Point.distance(corners[1], corners[3])
                 ) // 4
+
+    def write_sudoku_values(self, values):
+        image = deepcopy(self._sudoku_image)
+        self._sudoku_position.write_in_cells(image, values)
+        cv2.imshow("Sudoku", image)
+        cv2.waitKey(0)
 
