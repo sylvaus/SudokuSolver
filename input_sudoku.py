@@ -1,6 +1,7 @@
-import csv
 import os
 from tkinter import Tk, Spinbox, Button, mainloop, Frame, LEFT, TOP
+
+from sudoku_utils.csv import save_sudoku
 
 
 class InputSudoku(Frame):
@@ -30,9 +31,7 @@ class InputSudoku(Frame):
         while os.path.isfile(filename.format(index)):
             index += 1
 
-        with open(filename.format(index), 'w', newline='') as csv_file:
-            writer = csv.writer(csv_file, delimiter=',')
-            writer.writerow([value.get() for value in self._values])
+        save_sudoku(filename.format(index), self._values)
 
 
 if __name__ == '__main__':

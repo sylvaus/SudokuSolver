@@ -1,5 +1,4 @@
-from sudoku_solver_benchmark import load_sudoku
-
+from sudoku_utils.csv import load_sudoku
 
 SUDOKU_STR = """
 =======================================

@@ -1,17 +1,9 @@
-import csv
 import glob
 import time
 import importlib
-from typing import List, Optional
 
-def load_sudoku(filename : str) -> List[Optional[int]]:
-    with open(filename, newline='') as file:
-        reader = csv.reader(file, delimiter=',')
-        values = []
-        for row in reader:
-            values = row
-            break
-        return [None if value == '0' else int(value) for value in values]
+from sudoku_utils.csv import load_sudoku
+
 
 def time_solver(sudoku_solver_class, sudokus, times=1000):
     start_time = time.clock()
@@ -21,7 +13,6 @@ def time_solver(sudoku_solver_class, sudokus, times=1000):
             sudoku_solver.solve()
 
     return (time.clock() - start_time) / (times * len(sudokus))
-
 
 
 if __name__ == '__main__':

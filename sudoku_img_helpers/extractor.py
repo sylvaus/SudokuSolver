@@ -7,7 +7,7 @@ import numpy
 import pytesseract as tess
 
 from sudoku_img_helpers.detectors import detect_possible_sudokus
-from sudoku_img_helpers.elements import Sudoku, Point
+from sudoku_img_helpers.elements import Sudoku, Point, CENTER
 
 
 class SudokuExtractor:
@@ -15,6 +15,7 @@ class SudokuExtractor:
         self._image = deepcopy(image)
         self._sudoku_image = None
         self._sudoku_position = None
+        self._result = None
 
     def extract_sudoku(self):
         image = cv2.resize(self._image, (1200, 1200))
@@ -87,9 +88,9 @@ class SudokuExtractor:
                 Point.distance(corners[1], corners[3])
                 ) // 4
 
-    def write_sudoku_values(self, values):
-        image = deepcopy(self._sudoku_image)
-        self._sudoku_position.write_in_cells(image, values)
-        cv2.imshow("Sudoku", image)
-        cv2.waitKey(0)
+    def write_sudoku_values(self, values, image=None, *args, **kwargs):
+        if image is None:
+            image = deepcopy(self._sudoku_image)
+        self._sudoku_position.write_in_cells(image, values, *args, **kwargs)
+        return image
 

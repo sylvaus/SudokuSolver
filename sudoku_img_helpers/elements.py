@@ -8,6 +8,8 @@ import numpy
 
 from sudoku_img_helpers.shape import Shape
 
+CENTER = 1
+BOTTOM_LEFT = 2
 
 class Point:
     def __init__(self, x: int = 0, y: int = 0):
@@ -117,9 +119,14 @@ class Cell:
     def draw_on_image(self, image, thickness: int = 3, color: tuple = (0, 0, 255)):
         cv2.drawContours(image, [self.contour], -1, color, thickness)
 
-    def write_on_image(self, image, text: str, font=cv2.FONT_HERSHEY_PLAIN, font_scale=2, color=(0, 0, 0), thickness=4):
+    def write_on_image(self, image, text: str, font=cv2.FONT_HERSHEY_PLAIN,
+                       font_scale=2, color=(0, 0, 0), thickness=2, position=CENTER):
         size, baseline = cv2.getTextSize(text, font, font_scale, thickness=thickness)
-        cv2.putText(image, text, (self.center + Point(-size[0]/2, size[1]/2)).to_tuple(),
+        corner = self.bottom_left
+        if position == CENTER:
+            corner = self.center + Point(-size[0]/2, size[1]/2)
+
+        cv2.putText(image, text, corner.to_tuple(),
                     font, font_scale, color, thickness=thickness)
 
     def get_cell_image(self, image, offset: float=0):
@@ -189,13 +196,14 @@ class Sudoku(Cell):
         for cell in self._cells:
             cell.draw_on_image(image, *args, **kwargs)
 
-    def write_in_cells(self, image, values, font=cv2.FONT_HERSHEY_PLAIN, font_scale=2, color=(0, 0, 0)):
+    def write_in_cells(self, image, values, font=cv2.FONT_HERSHEY_PLAIN,
+                       font_scale=2, color=(0, 0, 0), thickness=2, position=CENTER):
         assert len(self._cells) == len(values)
 
         for cell, value in zip(self._cells, values):
             if value is None:
                 continue
-            cell.write_on_image(image, str(value), font, font_scale, color)
+            cell.write_on_image(image, str(value), font, font_scale, color, thickness, position)
 
     @staticmethod
     def sort_shape_corners(shape: Shape) -> List[Point]:
