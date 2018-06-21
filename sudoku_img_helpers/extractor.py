@@ -36,7 +36,6 @@ class SudokuExtractor:
                 cell_image = cell.get_cell_image(ocr_image, 0.15)
                 text = tess.image_to_string(cell_image,
                                             config="--psm 10 -c classify_bln_numeric_mode=1 --oem 1")
-
                 result.append(self._text_to_int(text))
 
         return result
@@ -44,8 +43,9 @@ class SudokuExtractor:
     @staticmethod
     def _prepare_image_for_ocr(sudoku_image):
         gray = cv2.cvtColor(sudoku_image, cv2.COLOR_BGR2GRAY)
-        blurred = cv2.GaussianBlur(gray, (15, 15), 0)
-        sudoku_image = cv2.adaptiveThreshold(blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        blurred = cv2.GaussianBlur(gray, (11, 11), 0)
+        unsharped = cv2.addWeighted(gray, 1.5, blurred, -0.5, 0, gray)
+        sudoku_image = cv2.adaptiveThreshold(unsharped, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                              cv2.THRESH_BINARY, 11, 2)
         return sudoku_image
 

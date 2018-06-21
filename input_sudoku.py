@@ -31,7 +31,7 @@ class InputSudoku(Frame):
         while os.path.isfile(filename.format(index)):
             index += 1
 
-        save_sudoku(filename.format(index), self._values)
+        save_sudoku(filename.format(index), [value.get() for value in self._values])
 
 
 if __name__ == '__main__':

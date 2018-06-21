@@ -4,9 +4,11 @@ from typing import List, Optional
 
 
 def save_sudoku(filename, values):
+    values = [0 if value is None else value for value in values]
+
     with open(filename, 'w', newline='') as csv_file:
         writer = csv.writer(csv_file, delimiter=',')
-        writer.writerow([value.get() for value in values])
+        writer.writerow(values)
 
 
 def load_sudoku(filename : str) -> List[Optional[int]]:
